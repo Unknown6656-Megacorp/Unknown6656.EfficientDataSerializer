@@ -1,0 +1,108 @@
+﻿Type:
+    0000 0000 = null
+    001- ---- = boolean
+    01x- ---- = integer
+    100- ---- = float
+    101- ---- = string
+    110- ---- = array
+    111- ---- = dictionary
+
+
+Boolean:
+    0000 0000 = null
+    0010 ---0 = false
+    0010 ---1 = true
+    ---- xxx- =
+
+
+Integer:
+    +------------+ - - - +-----------------+
+    | first byte |       | following bytes |
+    +------------+ - - - +-----------------+
+
+    first byte:
+        010- ---- = positive
+        011- ---- = negative
+        ---0 ---- = no following bytes
+        ---1 ---- = has following byte(s)
+        ---- xxxx = value (lsb first)
+
+    following bytes:
+        1--- ---- = has following byte(s)
+        0--- ---- = last byte
+        -xxx xxxx = value (lsb first)
+
+
+Float:
+    +---+
+    |   |
+    | F +--------------------------+
+    |   | 32Bit/64Bit/128Bit Float |
+    +---+--------------------------+
+    F:
+        0000 0000 = null (0 following bytes)
+        1000 0000 = zero (0 following bytes)
+        1000 0001 = infinity (0 following bytes)
+        1000 0010 = -infinity (0 following bytes)
+        1000 0011 = NaN (0 following bytes)
+        100- -100 = 16Bit
+        100- -101 = 64Bit
+        100- -110 = 32Bit
+        100- -111 = 128Bit (fixed)
+        ---x x--- =
+
+
+String / Byte Array:
+    +---+
+    |   |
+    |   +----------------------------+
+    |   |       UUID (16 Bytes)      |
+    | F +-----------------+----------+----+
+    |   |                 |   raw bytes   |
+    |   | length : varint +---- - - - ----+----+---- - - - ----+
+    |   |                 | code page : varint |   raw bytes   |
+    +---+-----------------+--------------------+---- - - - ----+
+    F:
+        0000 0000 = null (0 following bytes)
+        1010 0000 = empty (0 following bytes)
+        101- 0001 = binary (ie. byte array)
+        101- 0010 = ascii
+        101- 0011 = utf-8
+        101- 0100 = utf-16 LE
+        101- 0101 = utf-16 BE
+        101- 0110 = utf-32
+        101- 0111 = ISO 8859-1
+        101- 1000 = custom code page (varint follows after length)
+        1010 1001 = interpret length as UTF16 char point (no following codepage or string)
+        1010 1010 = interpret the following 16 bytes as UUID string (no length or code page)
+        101- 1011 =
+        101- 11xx =
+        ---1 ---- = GZIP compressed bytes
+
+
+Array:
+    +---+---------+ - - +---------+
+    |   | entry 1 |     | entry n |
+    | F +---------+-----+-+-------+-+ - - - +---------+
+    |   | length : varint | entry 1 |       | entry n |
+    +---+-----------------+---------+ - - - +---------+
+    F:
+        0000 0000 = null (0 following bytes)
+        1100 xxxx = short array (xxxx denotes the number of entries)
+        1101 ---- = long array (varint length follows)
+
+
+Dictionary:
+    +---+--------+---------+ - - - +--------+---------+
+    |   | name 1 | value 1 |       | name n | value n |
+    |   +--------+--------++-------+--------++ - - - ++-------+---------+
+    | F | length : varint | name 1 | value 1 |       | name n | value n |
+    |   +-----------------+--------+---------+----+--+-------++------+--+-------+--------------+---------+ - - - +--------------+---------+
+    |   | length : varint | prefix count : varint | prefix 1 |       | prefix m | short name 1 | value 1 |       | short name n | value n |
+    +---+-----------------+-----------------------+----------+ - - - +----------+--------------+---------+ - - - +--------------+---------+
+    F:
+        0000 0000 = null (0 following bytes)
+        1110 xxxx = small full-name dictionary (no varint length, xxxx denotes number of entries)
+        1111 0000 = large full-name dictionary
+        1111 0001 = large short-name dictionary
+        1111 xxx- = 

@@ -1,0 +1,145 @@
+﻿Type:
+    0000 0000 = null
+    -0-- 0--- = float
+    -0-- 1--- = string
+    -1-0 ---- = varint
+    -0-1 ---- = object or array
+
+
+Varint:
+    +------------+ - - - +-----------------+
+    | first byte |       | following bytes |
+    +------------+ - - - +-----------------+
+
+    first byte:
+        1--- ---- = has following byte(s)
+        0--- ---- = no following bytes
+        0000 0000 = null
+        -0-- 0--- => float
+        -0-- 1--- => string
+        -0-1 ---- => object or array
+        0100 ---- = non-null integer
+        0110 ---- = negative
+        0111 ---- => boolean
+        ---- xxxx = value (lsb first)
+
+    following bytes:
+        1--- ---- = has following byte(s)
+        0--- ---- = last byte
+        -xxx xxxx = value (lsb first)
+
+
+Boolean:
+    0000 0000 = null
+    0111 0000 = false
+    0111 0001 = true
+    -0-- 0--- => float
+    -0-- 1--- => string
+    -1-0 ---- => varint
+    -0-1 ---- => object or array
+
+
+Floats:
+
+    +---+--------------------------+
+    | F | 32Bit/64Bit/128Bit Float |
+    +---+--------------------------+
+    F:
+        (second bit must be zero to distinguish from varint; except when zero)
+        (fifth bit must be zero to distinguish from strings)
+
+        0000 0000 = null (0 following bytes)
+        0100 0000 = zero (0 following bytes)
+        0001 0000 = infinity (0 following bytes)
+        0010 0000 = -infinity (0 following bytes)
+        0011 0000 = NaN (0 following bytes)
+        -1-0 ---- => varint
+        -0-- 1--- => string
+        -0-1 ---- => object or array
+        10-0 0001 = 16Bit
+        10-0 0010 = 32Bit
+        10-0 0011 = 64Bit
+        10-0 0100 = 128Bit
+        10-0 0101 =
+        10-0 011x =
+        10x0 ---- =
+
+
+String / Byte Array:
+
+                           .- - - - opt - - - -.
+    +---+-----------------+--------------------+---- - - - ----+
+    | F | length : varint | code page : varint |   raw bytes   |
+    +---+-----------------+--------------------+---- - - - ----+
+    F:
+        (second bit must be zero to distinguish from varint; except when empty)
+        (fifth bit must be one to distinguish from floats)
+
+        0000 0000 = null (0 following bytes)
+        0100 0000 = empty (0 following bytes)
+        -1-- ---- => varint
+        1000 0001 = binary (ie. byte array)
+        -0-- 0--- => float
+        1000 1000 = ascii
+        1000 1001 = utf-8
+        1000 1010 = utf-16 LE
+        1000 1011 = utf-16 BE
+        1000 1100 = utf-32
+        1000 1101 = ISO 8859-1
+        1000 1110 = unknown code page (varint follows after length)
+        1000 1111 = interpret length as UTF16 char point (no following codepage or string)
+
+
+Array:
+
+    +---+-------+
+    |   | entry |
+    |   +-------+---------+---------+ - - - +---------+
+    | F |                 | entry 1 |       | entry n |
+    |   | length : varint +--------++-------+--+---+--+--------+ - - - +--------+-----------+ - +-----------+
+    |   |                 | type 1 | entry 1.1 |   | entry 1.n |       | type m | entry m.1 |   | entry m.k |
+    +---+-----------------+--------+-----------+ - +-----------+ - - - +--------+-----------+ - +-----------+
+    F:
+        0000 0000 = null (0 following bytes)
+        0100 0000 = empty (0 following bytes)
+        0101 0--- = single entry
+        100- -000 = array of nulls (no bytes after length)
+        100- -001 = array of varints
+        100- -010 = array of booleans
+        100- -011 = array of floats
+        100- -100 = array of strings
+        100- -101 = array of arrays
+        100- -110 = array of dictionaries
+        100- -111 = 
+        110- ---- = array of different types
+        111- ---- => dictionary
+        ---x x--- =
+
+    Type X:
+        ---- -000 = null (no entry for X)
+        ---- -001 = varint
+        ---- -010 = boolean
+        ---- -011 = float
+        ---- -100 = string
+        ---- -101 = array
+        ---- -110 = dictionary
+        ---- -111 =
+        xxxx x--- = number of sequential entries of this type
+
+
+Dictionary:
+
+    +---+-----------------+--- - - - ---+
+    | F | name dictionary |     data    |
+    +---+-----------------+--- - - - ---+
+    F:
+        0000 0000 = null (0 following bytes)
+        0100 0000 = empty (0 following bytes)
+        1-0- ---- => array
+        111- ---0 = short name dictionary
+        111- ---1 = full name dictionary
+        ---x xxx- = 
+
+    name dictionary:
+        Array[ String ]
+
